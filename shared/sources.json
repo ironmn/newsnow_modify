@@ -24,6 +24,14 @@
     "color": "blue",
     "interval": 600000
   },
+  "cctvnews": {
+    "name": "央视新闻",
+    "type": "realtime",
+    "column": "china",
+    "home": "https://news.cctv.com",
+    "color": "red",
+    "interval": 600000
+  },
   "weibo": {
     "title": "实时热搜",
     "name": "微博",
