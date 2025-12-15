@@ -58,7 +58,7 @@ function extractItems(payload: CCTVNewsResponse): CCTVNewsItem[] {
 }
 
 export default defineSource(async () => {
-  const endpoint = "https://news.cctv.com/2019/07/gaiban/cmsdatainterface/page/china_1.json"
+  const endpoint = "https://news.cctv.com/2019/07/gaiban/cmsdatainterface/page/china_1.jsonp?cb=china"
   const rawResponse = await myFetch<string | CCTVNewsResponse>(endpoint, { responseType: "text" })
 
   const payload = typeof rawResponse === "string" ? parseJsonPayload(rawResponse) : rawResponse
