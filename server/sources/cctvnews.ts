@@ -1,102 +1,99 @@
-import * as cheerio from "cheerio"
-
 import type { NewsItem } from "@shared/types"
 
-const BASE_URL = "https://news.cctv.com"
-const CHINA_PATH = "/china/"
+interface CCTVNewsItem {
+  id?: string
+  title?: string
+  url?: string
+  link?: string
+  href?: string
+  client_url?: string
+  mobile_url?: string
+  mobileUrl?: string
+  pubDate?: string
+  publishdate?: string
+  publish_time?: string
+  focus_date?: string
+  date?: string
+}
+
+type CCTVNewsPayload =
+  | CCTVNewsItem[]
+  | {
+    list?: CCTVNewsItem[]
+    data?: CCTVNewsItem[]
+    items?: CCTVNewsItem[]
+  }
+
+interface CCTVNewsResponse {
+  data?: CCTVNewsPayload
+  list?: CCTVNewsItem[]
+  page?: { data?: CCTVNewsItem[] }
+}
 
 function normalizeUrl(url?: string) {
   if (!url) return undefined
   if (url.startsWith("http")) return url
   if (url.startsWith("//")) return `https:${url}`
-  if (url.startsWith("/")) return `${BASE_URL}${url}`
+  if (url.startsWith("/")) return `https://news.cctv.com${url}`
   return url
 }
 
-function stripQuery(url: string) {
-  try {
-    const u = new URL(url)
-    u.search = ""
-    u.hash = ""
-    return u.toString()
-  } catch {
-    return url
-  }
+function parseJsonPayload(raw: string): CCTVNewsResponse {
+  const trimmed = raw.trim()
+  const jsonText = trimmed.replace(/^[^(]*\(/, "").replace(/\)\s*;?$/, "") || trimmed
+  return JSON.parse(jsonText)
 }
 
-function parseDateFromPath(url: string) {
-  const dateMatch = url.match(/\/(20\d{2})\/(\d{2})\/(\d{2})\//)
-  if (!dateMatch) return undefined
+function extractItems(payload: CCTVNewsResponse): CCTVNewsItem[] {
+  const nested = payload.data as CCTVNewsResponse["data"]
+  const list = Array.isArray(nested)
+    ? nested
+    : [nested?.list, nested?.data, nested?.items].find(Array.isArray) ?? []
 
-  const [, year, month, day] = dateMatch
-  const currentYear = new Date().getFullYear()
-  const yearNum = Number(year)
-
-  // Skip obviously stale archives (e.g., old 2019 URLs still linked from templates)
-  if (Number.isNaN(yearNum) || yearNum < currentYear - 1 || yearNum > currentYear) return undefined
-
-  const isoDate = `${year}-${month}-${day}`
-  const timestamp = Date.parse(isoDate)
-  return Number.isNaN(timestamp) ? undefined : timestamp
-}
-
-function buildNewsItem(link: string, title?: string): NewsItem | undefined {
-  const normalized = normalizeUrl(link)
-  if (!normalized) return undefined
-
-  const cleaned = stripQuery(normalized)
-  const pubDate = parseDateFromPath(cleaned)
-  if (!pubDate) return undefined
-
-  const text = title?.trim()
-  if (!text) return undefined
-
-  return {
-    id: cleaned,
-    title: text,
-    url: cleaned,
-    mobileUrl: cleaned,
-    pubDate,
-  }
+  return [
+    ...(Array.isArray(list) ? list : []),
+    ...(Array.isArray(payload.list) ? payload.list : []),
+    ...(Array.isArray(payload.page?.data) ? payload.page!.data! : []),
+  ]
 }
 
 export default defineSource(async () => {
+  const endpoint = "https://news.cctv.com/2019/07/gaiban/cmsdatainterface/page/china_1.json"
+  const rawResponse = await myFetch<string | CCTVNewsResponse>(endpoint, { responseType: "text" })
+
+  const payload = typeof rawResponse === "string" ? parseJsonPayload(rawResponse) : rawResponse
+  const items = extractItems(payload)
+
   const newsMap = new Map<string | number, NewsItem>()
-  const htmlEndpoints = [`${BASE_URL}${CHINA_PATH}`]
 
-  for (const endpoint of htmlEndpoints) {
-    try {
-      const html = await myFetch<string>(endpoint, {
-        responseType: "text",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-          "Referer": `${BASE_URL}/`,
-          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-        },
-      })
+  items.forEach((item) => {
+    const title = item.title?.trim()
+    const link = normalizeUrl(item.url ?? item.link ?? item.href)
 
-      const $ = cheerio.load(html)
+    if (!title || !link) return
 
-      $("a").each((_, el) => {
-        const rawHref = $(el).attr("href") || ""
-        const title = $(el).text().trim() || $(el).attr("title")?.trim()
-
-        const item = buildNewsItem(rawHref, title)
-        if (!item || newsMap.has(item.id)) return
-
-        newsMap.set(item.id, item)
-      })
-    } catch (error) {
-      if (!(error instanceof Error)) throw error
-      continue
+    const dateString = item.focus_date ?? item.pubDate ?? item.publish_time ?? item.publishdate ?? item.date
+    let pubDate: number | undefined
+    if (dateString) {
+      try {
+        pubDate = tranformToUTC(dateString)
+      } catch {
+        pubDate = undefined
+      }
     }
+    const id = item.id ?? link
+    const mobileUrl = normalizeUrl(item.client_url ?? item.mobileUrl ?? item.mobile_url) ?? link
 
-    if (newsMap.size >= 30) break
-  }
+    if (!newsMap.has(id)) {
+      newsMap.set(id, {
+        id,
+        title,
+        url: link,
+        mobileUrl,
+        pubDate,
+      })
+    }
+  })
 
-  const sorted = Array.from(newsMap.values()).sort((a, b) => (b.pubDate ?? 0) - (a.pubDate ?? 0))
-  if (sorted.length === 0) throw new Error("Failed to fetch CCTV News feed")
-
-  return sorted.slice(0, 30)
+  return Array.from(newsMap.values()).sort((a, b) => (b.pubDate ?? 0) - (a.pubDate ?? 0))
 })
