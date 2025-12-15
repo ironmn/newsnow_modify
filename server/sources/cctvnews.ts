@@ -14,7 +14,6 @@ interface CCTVNewsItem {
   publish_time?: string
   focus_date?: string
   date?: string
-  pubtime?: string
 }
 
 type CCTVNewsPayload =
@@ -59,26 +58,8 @@ function extractItems(payload: CCTVNewsResponse): CCTVNewsItem[] {
 }
 
 export default defineSource(async () => {
-  const endpoints = [
-    "https://news.cctv.com/2019/07/gaiban/cmsdatainterface/interface/china/index.json",
-    "https://news.cctv.com/2019/07/gaiban/cmsdatainterface/interface/index.json",
-    "https://news.cctv.com/2019/07/gaiban/cmsdatainterface/page/china/index.json",
-    "https://news.cctv.com/2019/07/gaiban/cmsdatainterface/page/china_1.json",
-  ]
-
-  let rawResponse: string | CCTVNewsResponse | undefined
-
-  for (const endpoint of endpoints) {
-    try {
-      rawResponse = await myFetch<string | CCTVNewsResponse>(endpoint, { responseType: "text" })
-      break
-    } catch (error) {
-      if (error instanceof Error && "response" in error) continue
-      throw error
-    }
-  }
-
-  if (!rawResponse) throw new Error("Failed to fetch CCTV News feed")
+  const endpoint = "https://news.cctv.com/2019/07/gaiban/cmsdatainterface/page/china_1.json"
+  const rawResponse = await myFetch<string | CCTVNewsResponse>(endpoint, { responseType: "text" })
 
   const payload = typeof rawResponse === "string" ? parseJsonPayload(rawResponse) : rawResponse
   const items = extractItems(payload)
@@ -91,7 +72,7 @@ export default defineSource(async () => {
 
     if (!title || !link) return
 
-    const dateString = item.focus_date ?? item.pubDate ?? item.publish_time ?? item.publishdate ?? item.date ?? item.pubtime
+    const dateString = item.focus_date ?? item.pubDate ?? item.publish_time ?? item.publishdate ?? item.date
     let pubDate: number | undefined
     if (dateString) {
       try {
