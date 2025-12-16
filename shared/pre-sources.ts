@@ -32,16 +32,9 @@ export const originSources = {
     home: "https://www.zhihu.com",
   },
   "cctvnews": {
-    name: "央视新闻-国内",
+    name: "央视新闻",
     type: "realtime",
     column: "china",
-    color: "red",
-    home: "https://news.cctv.com",
-  },
-  "cctvworld": {
-    name: "央视新闻-国际",
-    type: "realtime",
-    column: "world",
     color: "red",
     home: "https://news.cctv.com",
   },

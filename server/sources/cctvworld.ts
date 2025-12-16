@@ -1,4 +1,4 @@
-import { BASE_URL, createCctvSource } from "./cctv-shared"
+import { BASE_URL, createCctvSource } from "./cctvnews"
 
 export default createCctvSource({
   jsonpEndpoints: [
