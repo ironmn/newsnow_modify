@@ -39,7 +39,6 @@ import toutiao from "./toutiao"
 import v2ex from "./v2ex"
 import wallstreetcn from "./wallstreetcn"
 import weibo from "./weibo"
-import xinhua from "./xinhua"
 import xueqiu from "./xueqiu"
 import zaobao from "./zaobao"
 import zhihu from "./zhihu"
@@ -86,7 +85,6 @@ export const sourceModules = {
   v2ex,
   wallstreetcn,
   weibo,
-  xinhua,
   xueqiu,
   zaobao,
   zhihu,
