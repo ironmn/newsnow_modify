@@ -40,14 +40,6 @@
     "color": "red",
     "interval": 600000
   },
-  "xinhua": {
-    "name": "新华网-能源",
-    "type": "realtime",
-    "column": "china",
-    "home": "https://www.news.cn",
-    "color": "blue",
-    "interval": 600000
-  },
   "weibo": {
     "title": "实时热搜",
     "name": "微博",

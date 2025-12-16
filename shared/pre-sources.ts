@@ -45,13 +45,6 @@ export const originSources = {
     color: "red",
     home: "https://news.cctv.com",
   },
-  "xinhua": {
-    name: "新华网-能源",
-    type: "realtime",
-    column: "china",
-    color: "blue",
-    home: "https://www.news.cn",
-  },
   "weibo": {
     name: "微博",
     title: "实时热搜",
