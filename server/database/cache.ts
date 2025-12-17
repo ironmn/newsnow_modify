@@ -3,7 +3,15 @@ import type { NewsItem } from "@shared/types"
 import type { Database } from "db0"
 import type { CacheInfo, CacheRow } from "../types"
 
-export class Cache {
+interface CacheLike {
+  init: () => Promise<void>
+  set: (key: string, value: NewsItem[]) => Promise<void>
+  get: (key: string) => Promise<CacheInfo | undefined>
+  getEntire: (keys: string[]) => Promise<CacheInfo[]>
+  delete: (key: string) => Promise<unknown>
+}
+
+export class Cache implements CacheLike {
   private db
   constructor(db: Database) {
     this.db = db
@@ -71,15 +79,47 @@ export class Cache {
   }
 }
 
-export async function getCacheTable() {
+class InMemoryCache implements CacheLike {
+  private store = new Map<string, CacheInfo>()
+
+  async init() {}
+
+  async set(key: string, items: NewsItem[]) {
+    this.store.set(key, { id: key, updated: Date.now(), items })
+    logger.success(`set ${key} cache (memory)`) // match logging behavior
+  }
+
+  async get(key: string) {
+    const value = this.store.get(key)
+    if (value) logger.success(`get ${key} cache (memory)`)
+    return value
+  }
+
+  async getEntire(keys: string[]) {
+    return keys
+      .map(key => this.store.get(key))
+      .filter((value): value is CacheInfo => Boolean(value))
+  }
+
+  async delete(key: string) {
+    this.store.delete(key)
+  }
+}
+
+let memoryCache: InMemoryCache | undefined
+
+export async function getCacheTable(): Promise<CacheLike | undefined> {
+  if (process.env.ENABLE_CACHE === "false") return
+
   try {
     const db = useDatabase()
-    // logger.info("db: ", db.getInstance())
-    if (process.env.ENABLE_CACHE === "false") return
     const cacheTable = new Cache(db)
     if (process.env.INIT_TABLE !== "false") await cacheTable.init()
     return cacheTable
   } catch (e) {
     logger.error("failed to init database ", e)
   }
+
+  if (!memoryCache) memoryCache = new InMemoryCache()
+  return memoryCache
 }
