@@ -6,8 +6,6 @@ const PAGE_COUNT = 2
 const HEADERS = {
   "accept": "application/json, text/plain, */*",
   "accept-language": "zh,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,ja;q=0.6",
-  "user-agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143 Safari/537.36",
   "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
   "sec-ch-ua-mobile": "?0",
   "sec-ch-ua-platform": "\"Windows\"",
@@ -17,7 +15,6 @@ const HEADERS = {
   "cookie":
     "arialoadData=false; wdcid=6b6ed4d182813f2a; ariawapChangeViewPort=false; ariaFixed=true; ariaReadtype=1; ariaoldFixedStatus=false; ariaStatus=false; xinhuatoken=news; wdlast=1765807630",
   "Referer": "https://so.news.cn/",
-  "Origin": "https://so.news.cn",
 }
 
 interface RawResult {
