@@ -21,6 +21,15 @@ export function NavBar() {
       >
         更多
       </button>
+      <Link
+        to="/press"
+        className={$([
+          "px-2 hover:(bg-primary/10 rounded-md) cursor-pointer transition-all",
+          "color-primary font-bold",
+        ])}
+      >
+        新闻稿
+      </Link>
       {fixedColumnIds.map(columnId => (
         <Link
           key={columnId}
