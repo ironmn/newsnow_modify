@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router"
 import { motion } from "framer-motion"
 
 // function ThemeToggle() {
@@ -68,6 +69,12 @@ export function Menu() {
               <li onClick={() => window.open(Homepage)} className="cursor-pointer [&_*]:cursor-pointer transition-all">
                 <span className="i-ph:github-logo-duotone inline-block" />
                 <span>Star on Github </span>
+              </li>
+              <li className="transition-all">
+                <Link to="/press" className="flex items-center gap-1">
+                  <span className="i-ph:newspaper-clipping-duotone inline-block" />
+                  <span>新闻稿自动生成</span>
+                </Link>
               </li>
               <li className="flex gap-2 items-center">
                 <a
