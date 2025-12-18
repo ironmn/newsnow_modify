@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useMutation } from "@tanstack/react-query"
-import { useState } from "react"
 import type {
   PressGenerationRequest,
   PressGenerationResponse,
@@ -9,7 +8,6 @@ import type {
   PressSectionResult,
 } from "@shared/press"
 import { defaultPressSections } from "@shared/press"
-import { PressConfigModal } from "~/components/press/config-modal"
 import { type EditableSection, PressSectionCard } from "~/components/press/section-card"
 import { useToast } from "~/hooks/useToast"
 import { myFetch } from "~/utils"
@@ -29,7 +27,6 @@ function PressRoute() {
     prompt: section.defaultPrompt,
   })))
   const [results, setResults] = useState<ResultMap>({})
-  const [configOpen, setConfigOpen] = useState(false)
 
   const mutation = useMutation({
     mutationFn: async (payload: PressGenerationRequest) => {
@@ -79,15 +76,6 @@ function PressRoute() {
             <div className="text-xl font-semibold flex items-center gap-2">
               <span className="i-ph:newspaper-clipping-duotone text-primary" />
               <span>新闻稿自动生成</span>
-              <button
-                type="button"
-                className="rounded-full border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 px-2 py-1 text-xs flex items-center gap-1 hover:border-primary"
-                onClick={() => setConfigOpen(true)}
-                title="配置 API 密钥与检测"
-              >
-                <span className="i-ph:gear-six-duotone" />
-                <span>配置</span>
-              </button>
             </div>
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
               LangChain 风格工具链：SerpAPI 检索 + 智谱 Reader 取文 + DeepSeek 生成，并支持自定义提示词。
@@ -137,8 +125,6 @@ function PressRoute() {
           />
         ))}
       </div>
-
-      <PressConfigModal open={configOpen} onClose={() => setConfigOpen(false)} />
     </div>
   )
 }

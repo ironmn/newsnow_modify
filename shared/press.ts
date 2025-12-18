@@ -52,41 +52,6 @@ export interface PressGenerationResponse {
   searchMode: PressSearchMode
 }
 
-export type PressConfigSource = "db" | "env" | "none"
-
-export interface PressApiConfig {
-  serpApiKey?: string
-  readerApiKey?: string
-  deepseekApiKey?: string
-  deepseekApiBase?: string
-  deepseekModel?: string
-  updatedAt?: number
-}
-
-export interface PressConfigSnapshot {
-  config?: PressApiConfig
-  source: PressConfigSource
-  dbExists: boolean
-}
-
-export interface PressConfigStatus {
-  id: "serpapi" | "reader" | "deepseek"
-  label: string
-  ok: boolean
-  message?: string
-  latencyMs?: number
-  checkedAt?: number
-}
-
-export interface PressConfigStatusResponse {
-  source: PressConfigSource
-  statuses: PressConfigStatus[]
-}
-
-export type PressConfigSaveRequest = PressApiConfig
-
-export interface PressConfigSaveResponse extends PressConfigSnapshot {}
-
 export const defaultPressSections: PressSectionConfig[] = [
   {
     id: "major-news",

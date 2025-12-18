@@ -1,3 +1,4 @@
+import process from "node:process"
 import type {
   PressGenerationRequest,
   PressGenerationResponse,
@@ -14,8 +15,13 @@ import {
   pressSectionMap,
 } from "@shared/press"
 import { $fetch } from "ofetch"
-import { type PressRuntimeConfig, resolvePressRuntimeConfig } from "./press-config"
 import { myFetch as request } from "#/utils/fetch"
+
+const SERP_API_KEY = process.env.SERPAPI_API_KEY
+const READER_API_KEY = process.env.READER_API_KEY
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY
+const DEEPSEEK_API_BASE = process.env.DEEPSEEK_API_BASE ?? "https://api.deepseek.com"
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL ?? "deepseek-chat"
 
 interface SectionRuntime {
   config: PressSectionConfig
@@ -67,21 +73,21 @@ function normalizeSections(inputs?: PressSectionInput[]): SectionRuntime[] {
   })
 }
 
-function assertConfig(config: PressRuntimeConfig, searchMode: PressSearchMode) {
-  if (!config.deepseekApiKey) {
-    throw new Error("DeepSeek API key 未配置：请在环境变量或配置面板中填写")
+function assertEnv(searchMode: PressSearchMode) {
+  if (!DEEPSEEK_API_KEY) {
+    throw new Error("DeepSeek API key 未配置：请在环境变量中设置 DEEPSEEK_API_KEY")
   }
   if (searchMode === "web") {
-    if (!config.serpApiKey) throw new Error("SerpAPI key 未配置：请在环境变量或配置面板中填写")
-    if (!config.readerApiKey) throw new Error("Reader key 未配置：请在环境变量或配置面板中填写")
+    if (!SERP_API_KEY) throw new Error("SerpAPI key 未配置：请在环境变量中设置 SERPAPI_API_KEY")
+    if (!READER_API_KEY) throw new Error("Reader key 未配置：请在环境变量中设置 READER_API_KEY")
   }
 }
 
-async function fetchSerp(query: string, apiKey: string) {
+async function fetchSerp(query: string) {
   const url = new URL("https://serpapi.com/search")
   url.searchParams.set("engine", "google")
   url.searchParams.set("q", query)
-  url.searchParams.set("api_key", apiKey)
+  url.searchParams.set("api_key", SERP_API_KEY!)
   url.searchParams.set("gl", "cn")
   url.searchParams.set("hl", "zh-cn")
   url.searchParams.set("num", "5")
@@ -99,12 +105,12 @@ async function fetchSerp(query: string, apiKey: string) {
     .filter((item: any) => item?.title && item?.url)
 }
 
-async function fetchReader(url: string, apiKey: string) {
+async function fetchReader(url: string) {
   try {
     const res: any = await request("https://open.bigmodel.cn/api/paas/v4/reader", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${READER_API_KEY}`,
       },
       timeout: 20000,
       body: {
@@ -128,7 +134,7 @@ async function fetchReader(url: string, apiKey: string) {
   }
 }
 
-async function gatherContext(section: SectionRuntime, mode: PressSearchMode, config: PressRuntimeConfig): Promise<SectionContext> {
+async function gatherContext(section: SectionRuntime, mode: PressSearchMode): Promise<SectionContext> {
   if (mode === "skip") {
     return {
       ...section,
@@ -142,7 +148,7 @@ async function gatherContext(section: SectionRuntime, mode: PressSearchMode, con
   for (const query of section.config.searchQueries) {
     usedQueries.push(query.query)
     try {
-      const result = await fetchSerp(query.query, config.serpApiKey!)
+      const result = await fetchSerp(query.query)
       result.forEach((item: any) => {
         if (!item.url) return
         if (collected.find(existing => existing.url === item.url)) return
@@ -160,7 +166,7 @@ async function gatherContext(section: SectionRuntime, mode: PressSearchMode, con
 
   const limited = collected.slice(0, 6)
   const hydrated = await Promise.all(limited.map(async (item) => {
-    const content = await fetchReader(item.url, config.readerApiKey!)
+    const content = await fetchReader(item.url)
     return {
       ...item,
       content,
@@ -217,15 +223,15 @@ function buildPromptPayload(ctx: SectionContext) {
   }
 }
 
-async function callDeepSeek(payload: { messages: { role: string, content: string }[] }, config: PressRuntimeConfig) {
-  const res: any = await $fetch(`${config.deepseekApiBase}/v1/chat/completions`, {
+async function callDeepSeek(payload: { messages: { role: string, content: string }[] }) {
+  const res: any = await $fetch(`${DEEPSEEK_API_BASE}/v1/chat/completions`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${config.deepseekApiKey}`,
+      "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: {
-      model: config.deepseekModel,
+      model: DEEPSEEK_MODEL,
       messages: payload.messages,
       temperature: 0.35,
     },
@@ -236,9 +242,9 @@ async function callDeepSeek(payload: { messages: { role: string, content: string
   return message as string
 }
 
-function createLangChain(config: PressRuntimeConfig) {
+function createLangChain() {
   const toPrompt: Runnable<SectionContext, { messages: { role: string, content: string }[] }> = async ctx => buildPromptPayload(ctx)
-  const runModel: Runnable<{ messages: { role: string, content: string }[] }, string> = async payload => callDeepSeek(payload, config)
+  const runModel: Runnable<{ messages: { role: string, content: string }[] }, string> = async payload => callDeepSeek(payload)
   const parse: Runnable<string, string> = async content => content.trim()
 
   return sequence<SectionContext, string>(toPrompt, runModel, parse)
@@ -264,11 +270,10 @@ function toResult(ctx: SectionContext, content: string): PressSectionResult {
 
 export async function generatePressRelease(body: PressGenerationRequest): Promise<PressGenerationResponse> {
   const searchMode = body.searchMode ?? "web"
-  const config = await resolvePressRuntimeConfig()
-  assertConfig(config, searchMode)
+  assertEnv(searchMode)
   const sections = normalizeSections(body.sections)
-  const contexts = await Promise.all(sections.map(section => gatherContext(section, searchMode, config)))
-  const chain = createLangChain(config)
+  const contexts = await Promise.all(sections.map(section => gatherContext(section, searchMode)))
+  const chain = createLangChain()
 
   const results: PressSectionResult[] = []
   for (const ctx of contexts) {
